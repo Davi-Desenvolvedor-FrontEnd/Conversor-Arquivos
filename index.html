@@ -1,0 +1,419 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Conversor Excel → TXT (Formato Bancário)</title>
+    <!-- SheetJS para ler Excel -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        font-family:
+          "Inter",
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Roboto,
+          sans-serif;
+      }
+      body {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 1rem;
+      }
+      .card {
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        border-radius: 1rem;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        padding: 2.5rem;
+        width: 100%;
+        max-width: 800px;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+      }
+      h1 {
+        font-size: 2rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 0.5rem;
+        align-items: center;
+        display: flex;
+        gap: 10px;
+        height: 100px;
+
+        svg {
+            color: #667eea;
+        }
+      }
+      .file-area {
+        background: #f7fafc;
+        border-radius: 1.5rem;
+        padding: 2rem;
+        margin-bottom: 1.5rem;
+        border: 4px dashed #cbd5e0;
+        transition: all 0.3s ease;
+        position: relative;
+      }
+      .file-area:hover {
+        border-color: #667eea;
+        background: #f0f4ff;
+      }
+      .file-input {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        top: 0;
+        left: 0;
+        opacity: 0;
+        cursor: pointer;
+      }
+      .file-label {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 1rem;
+        pointer-events: none;
+      }
+      .file-label svg {
+        width: 48px;
+        height: 48px;
+        stroke: #667eea;
+        stroke-width: 1.5;
+        fill: none;
+      }
+      .file-label span {
+        font-size: 1.1rem;
+        color: #2d3748;
+        font-weight: 500;
+      }
+      .file-name {
+        margin-top: 1rem;
+        padding: 0.75rem;
+        background: #e2e8f0;
+        border-radius: 0.75rem;
+        font-size: 0.9rem;
+        color: #2d3748;
+        text-align: center;
+        word-break: break-all;
+      }
+      .convert-btn {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        padding: 1rem 2rem;
+        border-radius: 1rem;
+        font-size: 1.1rem;
+        font-weight: 600;
+        cursor: pointer;
+        width: 100%;
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        margin-bottom: 1.5rem;
+      }
+      .convert-btn:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 10px 20px -5px rgba(102, 126, 234, 0.5);
+      }
+      .convert-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .status {
+        background: #f7fafc;
+        border-radius: 1rem;
+        padding: 1rem;
+        min-height: 60px;
+        font-size: 0.95rem;
+        color: #2d3748;
+        border: 1px solid #667eea;
+        border-left-width: 4px;
+        white-space: pre-wrap;
+        word-break: break-word;
+        max-height: 200px;
+        overflow-y: auto;
+      }
+      .status.success {
+        background: #f0fff4;
+        border-left-color: #48bb78;
+        color: #22543d;
+      }
+      .status.error {
+        background: #fff5f5;
+        border-left-color: #f56565;
+        color: #742a2a;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h1>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="36"
+          height="36"
+          fill="currentColor"
+          class="bi bi-file-earmark-code"
+          viewBox="0 0 16 16"
+        >
+          <path
+            d="M14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2h5.5zm-3 0A1.5 1.5 0 0 1 9.5 3V1H4a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h8a1 1 0 0 0 1-1V4.5z"
+          />
+          <path
+            d="M8.646 6.646a.5.5 0 0 1 .708 0l2 2a.5.5 0 0 1 0 .708l-2 2a.5.5 0 0 1-.708-.708L10.293 9 8.646 7.354a.5.5 0 0 1 0-.708m-1.292 0a.5.5 0 0 0-.708 0l-2 2a.5.5 0 0 0 0 .708l2 2a.5.5 0 0 0 .708-.708L5.707 9l1.647-1.646a.5.5 0 0 0 0-.708"
+          />
+        </svg>
+        Conversor Excel → TXT
+      </h1>
+
+      <div class="file-area">
+        <input
+          type="file"
+          id="fileInput"
+          class="file-input"
+          accept=".xlsx, .xls, .csv"
+        />
+        <div class="file-label">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+            <path d="M12 16v-4m0 0V8m0 4h4m-4 0H8" stroke-linecap="round" />
+            <path
+              d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M8 8l4-4 4 4m-4-4v12"
+            />
+          </svg>
+          <span>Clique para selecionar ou arraste um arquivo Excel</span>
+        </div>
+        <div id="fileName" class="file-name">Nenhum arquivo selecionado</div>
+      </div>
+
+      <button class="convert-btn" id="convertBtn" disabled>
+        Converter para TXT
+      </button>
+
+      <div id="status" class="status">⏳ Aguardando arquivo...</div>
+    </div>
+
+    <script>
+      (function () {
+        const fileInput = document.getElementById("fileInput");
+        const convertBtn = document.getElementById("convertBtn");
+        const statusDiv = document.getElementById("status");
+        const fileNameDiv = document.getElementById("fileName");
+
+        // Função para converter data do Excel (dias desde 1900) para formato dd/mm/aaaa
+        function excelDateToJSDate(excelDate) {
+          if (!excelDate) return "";
+
+          // Se já for string no formato dd/mm/aaaa, retorna ela mesma
+          if (typeof excelDate === "string" && excelDate.includes("/")) {
+            return excelDate;
+          }
+
+          // Converte número para data
+          const date = new Date(Math.round((excelDate - 25569) * 86400 * 1000));
+          date.setMinutes(date.getMinutes() + date.getTimezoneOffset());
+
+          if (isNaN(date.getTime())) return excelDate.toString();
+
+          const day = date.getDate().toString().padStart(2, "0");
+          const month = (date.getMonth() + 1).toString().padStart(2, "0");
+          const year = date.getFullYear();
+
+          return `${day}/${month}/${year}`;
+        }
+
+        // Função para formatar valor (substituir . por ,)
+        function formatValue(value) {
+          if (value === undefined || value === null) return "";
+
+          let str = value.toString().trim();
+
+          // Se for número, substituir ponto por vírgula
+          if (!isNaN(str) && str.includes(".")) {
+            return str.replace(".", ",");
+          }
+
+          return str;
+        }
+
+        fileInput.addEventListener("change", function (e) {
+          const file = e.target.files[0];
+          if (file) {
+            fileNameDiv.textContent = `📎 ${file.name}`;
+            convertBtn.disabled = false;
+            statusDiv.textContent = "✅ Arquivo pronto para conversão";
+            statusDiv.className = "status";
+          } else {
+            fileNameDiv.textContent = "Nenhum arquivo selecionado";
+            convertBtn.disabled = true;
+            statusDiv.textContent = "⏳ Aguardando arquivo...";
+            statusDiv.className = "status";
+          }
+        });
+
+        convertBtn.addEventListener("click", function () {
+          const file = fileInput.files[0];
+          if (!file) {
+            statusDiv.textContent = "❌ Selecione um arquivo primeiro";
+            statusDiv.className = "status error";
+            return;
+          }
+
+          statusDiv.textContent = "🔄 Processando arquivo...";
+          statusDiv.className = "status";
+
+          const reader = new FileReader();
+
+          reader.onload = function (e) {
+            try {
+              const data = new Uint8Array(e.target.result);
+              const workbook = XLSX.read(data, { type: "array" });
+              const firstSheet = workbook.SheetNames[0];
+              const worksheet = workbook.Sheets[firstSheet];
+
+              // Converter para array de objetos (considerando primeira linha como cabeçalho)
+              const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+
+              if (rows.length < 2) {
+                throw new Error("Arquivo sem dados");
+              }
+
+              // Pular cabeçalho (primeira linha)
+              const outputLines = [];
+              let linhaCount = 0;
+
+              for (let i = 1; i < rows.length; i++) {
+                const row = rows[i];
+
+                // Pular linhas vazias
+                if (!row || row.length === 0 || !row[0]) continue;
+
+                // Extrair campos (baseado no formato COPIA.xlsx)
+                const data = row[0]; // Coluna A: Data
+                const debito =
+                  row[1] !== undefined && row[1] !== null
+                    ? row[1].toString().trim()
+                    : ""; // Coluna B: Débito
+                const credito =
+                  row[2] !== undefined && row[2] !== null
+                    ? row[2].toString().trim()
+                    : ""; // Coluna C: Crédito
+                const valor = row[3]; // Coluna D: Valor
+                const descricao =
+                  row[5] !== undefined && row[5] !== null
+                    ? row[5].toString().trim()
+                    : ""; // Coluna F: Descrição
+
+                // Converter data
+                const dataFormatada = excelDateToJSDate(data);
+
+                // Formatar valor
+                const valorFormatado = formatValue(valor);
+
+                // Determinar conta de débito e crédito baseado nos valores
+                let contaDebito = debito;
+                let contaCredito = credito;
+
+                // Garantir que os campos não fiquem vazios
+                if (!contaDebito) contaDebito = debito || "";
+                if (!contaCredito) contaCredito = credito || "";
+
+                // Montar linha 6100 com 10 campos (índices 0-9)
+                const linha6100 = [
+                  "6100",
+                  dataFormatada, // Data
+                  contaDebito, // Conta Débito
+                  contaCredito, // Conta Crédito
+                  valorFormatado, // Valor
+                  "", // Campo 5 vazio
+                  descricao, // Descrição/Histórico
+                  "", // Campo 7 vazio
+                  "", // Campo 8 vazio
+                  "", // Campo 9 vazio
+                ].join("|");
+
+                // Adicionar linha 6000 antes
+                outputLines.push("6000|X||||");
+                outputLines.push(linha6100);
+                linhaCount++;
+              }
+
+              if (outputLines.length === 0) {
+                statusDiv.textContent = "⚠️ Nenhuma linha de dados encontrada";
+                statusDiv.className = "status error";
+                return;
+              }
+
+              // Gerar arquivo TXT
+              const txtContent = outputLines.join("\n");
+              const blob = new Blob([txtContent], {
+                type: "text/plain;charset=utf-8",
+              });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download =
+                file.name.replace(/\.[^/.]+$/, "") + "_convertido.txt";
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+
+              statusDiv.textContent = `✅ Conversão concluída! ${linhaCount} registros processados.`;
+              statusDiv.className = "status success";
+            } catch (error) {
+              console.error(error);
+              statusDiv.textContent = "❌ Erro ao processar: " + error.message;
+              statusDiv.className = "status error";
+            }
+          };
+
+          reader.onerror = function () {
+            statusDiv.textContent = "❌ Erro ao ler o arquivo";
+            statusDiv.className = "status error";
+          };
+
+          reader.readAsArrayBuffer(file);
+        });
+
+        // Drag and drop
+        const fileArea = document.querySelector(".file-area");
+
+        fileArea.addEventListener("dragover", (e) => {
+          e.preventDefault();
+          fileArea.style.borderColor = "#667eea";
+          fileArea.style.background = "#f0f4ff";
+        });
+
+        fileArea.addEventListener("dragleave", (e) => {
+          e.preventDefault();
+          fileArea.style.borderColor = "#cbd5e0";
+          fileArea.style.background = "#f7fafc";
+        });
+
+        fileArea.addEventListener("drop", (e) => {
+          e.preventDefault();
+          fileArea.style.borderColor = "#cbd5e0";
+          fileArea.style.background = "#f7fafc";
+
+          const files = e.dataTransfer.files;
+          if (files.length > 0) {
+            fileInput.files = files;
+            const event = new Event("change", { bubbles: true });
+            fileInput.dispatchEvent(event);
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>
